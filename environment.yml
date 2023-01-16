@@ -1,0 +1,30 @@
+name: mlenv
+channels:
+    - conda-forge
+dependencies:
+    - python=3.9
+    - numba
+    - awkward
+    - vector
+    - xgboost
+    - uproot
+    - pyarrow
+    - rich
+    - dill
+    - scikit-learn
+    - scipy
+    - pandas
+    - pandas-datareader
+    - matplotlib
+    - pillow
+    - tqdm
+    - requests
+    - h5py
+    - pyyaml
+    - flask
+    - boto3
+    - pip
+    - pip:
+        - bayesian-optimization
+        - gym
+        - kaggle
