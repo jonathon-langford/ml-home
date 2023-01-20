@@ -21,7 +21,7 @@ conda env create -f environment.yml
 ```
 Then activate the environment with
 ```
-conda activate ml-home
+conda activate mlenv
 ```
 For nice plotting also pip install the mplhep library:
 ```
