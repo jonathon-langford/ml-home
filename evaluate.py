@@ -1,5 +1,8 @@
 import pandas as pd
 import numpy as np
+from scipy.optimize import minimize
+
+import pickle as pkl
 
 import matplotlib.pyplot as plt
 import mplhep
@@ -8,6 +11,7 @@ import warnings
 warnings.simplefilter(action='ignore')
 
 from python.evaluation_utils import *
+from python.fitting_utils import *
 
 from optparse import OptionParser
 def get_options():
@@ -17,10 +21,14 @@ def get_options():
     parser.add_option('--do-ml-output', dest='do_ml_output', default=False, action="store_true")
     parser.add_option('--do-roc', dest='do_roc', default=False, action="store_true")
     parser.add_option('--do-confusion-matrix', dest='do_confusion_matrix', default=False, action="store_true")
+    parser.add_option('--optimise-weights', dest='optimise_weights', default=None, help="Use metric to optimise weight array")
     return parser.parse_args()
 (opt,args) = get_options()
 
 # Plotting options
+bkg_ids = [0]
+sig_ids = [1,2]
+
 plot_map = {
     0:["Bkg","black","y_pred_bkg"],
     1:["ggH (125)","cornflowerblue","y_pred_ggH"],
@@ -57,5 +65,35 @@ if opt.do_confusion_matrix:
     conf_matrix, conf_matrix_labels = confusion_matrix(fig, ax, df[mask], plot_map, plot_path="plots/confusion_matrix" )
     conf_matrix, conf_matrix_labels = confusion_matrix(fig, ax, df[mask], plot_map, plot_path="plots/confusion_matrix", norm_by="pred" )
     conf_matrix, conf_matrix_labels = confusion_matrix(fig, ax, df[mask], plot_map, plot_path="plots/confusion_matrix", norm_by="pred" , mass_cut=True)
+
+# Build fit inputs
+
+score, truth_label, event_weights, label_map = prepare_fit_inputs( df, plot_map=plot_map )
+W_default = np.ones(len(sig_ids))
+F = calc_fisher_metric_differentiable(W_default, score, truth_label, event_weights, metric="matrix")
+
+W_init = 0.2*np.ones(len(sig_ids))
+W_bounds = []
+for i in sig_ids: W_bounds.append((0.05,0.4))
+
+print(" --> Running optimizer:")
+res = minimize( calc_fisher_metric_differentiable, W_init, args=(score,truth_label,event_weights,"nlogdetF"), bounds=W_bounds, method='TNC')
+
+# Plot likelihood surface with default and optimized weights
+# First get nominal
+df = add_proc_id_pred(df, plot_map)
+mu_grid, q = calc_nll(df)
+
+weight_array = np.ones(len(bkg_ids))
+weight_array = np.concatenate([weight_array,res.x])
+df = add_proc_id_pred(df, plot_map, weight_array=weight_array)
+mu_grid, qopt = calc_nll(df)
+
+plot_2d_nll( fig, ax, [q,qopt], mu_grid, plot_map=plot_map, plot_path="plots/nll_opt", ext="opt_by_nlogdetF", plot_surface=False, q_labels=["Default argmax: (1,1,1)","-ln(det(I)) optimised: (1,%.3f,%.3f)"%(weight_array[1],weight_array[2])])
+
+
+
+
+
 
 

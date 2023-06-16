@@ -120,6 +120,22 @@ def roc_three_class( fig, ax, data, signal_proc_id=None, var=None, plot_map={}, 
 
     return rocs
 
+# Add predicted proc_id label given set of input features
+def add_proc_id_pred( data, plot_map, weight_array=None, ext="" ):
+    pred_vars, pred_var_map = [], {}
+    i_pred_var = 0
+    for k, v in plot_map.items():
+        pred_vars.append( data[v[2]] )
+        pred_var_map[i_pred_var] = k
+        i_pred_var += 1
+
+    if weight_array is None:
+        weight_array = np.ones(len(pred_vars))
+
+    ext_str = "_%s"%ext if ext != "" else ""
+    data['proc_id_pred%s'%ext_str] = np.array([pred_var_map[j] for j in np.argmax( weight_array*np.array(pred_vars).T, axis=1 )])
+    return data
+
 
 # Confusion matrix: normalised by truth or predicted label
 def confusion_matrix( fig, ax, data, plot_map, plot_path="./plots", norm_by="truth", ext=None, mass_cut=False ):
