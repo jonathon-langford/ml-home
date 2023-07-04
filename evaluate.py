@@ -67,6 +67,16 @@ if opt.do_confusion_matrix:
     conf_matrix, conf_matrix_labels = confusion_matrix(fig, ax, df[mask], plot_map, plot_path="plots/confusion_matrix", norm_by="pred" , mass_cut=True)
 
 # Build fit inputs
+df = add_proc_id_pred(df, plot_map)
+mu_grid, q = calc_nll(df)
+
+weight_array = np.array([1,0.167,0.113])
+df = add_proc_id_pred(df, plot_map, weight_array=weight_array)
+mu_grid, qopt = calc_nll(df)
+
+plot_2d_nll( fig, ax, [q,qopt], mu_grid, plot_map=plot_map, plot_path="plots/nll_opt", ext="opt_by_detF", plot_surface=False, q_labels=["Default argmax: (1,1,1)","det(I) optimised: (1,%.3f,%.3f)"%(weight_array[1],weight_array[2])])
+
+exit(0)
 
 score, truth_label, event_weights, label_map = prepare_fit_inputs( df, plot_map=plot_map )
 W_default = np.ones(len(sig_ids))
