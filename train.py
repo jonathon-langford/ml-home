@@ -14,12 +14,42 @@ def get_options():
     return parser.parse_args()
 (opt,args) = get_options()
 
-train_vars = ['diphotonPt', 'dijetMass', 'dijetCentrality', 'leadPhotonPtOvM', 'subleadPhotonPtOvM', 'leadPhotonEta', 'leadPhotonIDMVA', 'subleadPhotonEta', 'subleadPhotonIDMVA', 'leadJetPt', 'leadJetEta', 'subleadJetPt', 'subleadJetEta', 'dijetAbsDEta']
+train_vars = [
+    'leadPhotonPt', 'leadPhotonEta', 'leadPhotonIDMVA',
+    'subleadPhotonPt', 'subleadPhotonEta', 'subleadPhotonIDMVA',
+    'leadJetPt', 'leadJetEta', 'leadJetQGL', 'leadJetBTagScore', 'leadJetDiphoDPhi', 'leadJetDiphoDEta',
+    'subleadJetPt', 'subleadJetEta', 'subleadJetQGL', 'subleadJetBTagScore', 'subleadJetDiphoDPhi', 'subleadJetDiphoDEta',
+    'subsubleadJetPt', 'subsubleadJetEta', 'subsubleadJetQGL', 'subsubleadJetBTagScore',
+    'leadElectronPt', 'leadElectronEta', 
+    'subleadElectronPt', 'subleadElectronEta', 
+    'leadMuonPt', 'leadMuonEta', 
+    'subleadMuonPt', 'subleadMuonEta',
+    'dijetMass', 'dijetPt', 'dijetEta', 'dijetAbsDEta', 'dijetDPhi', 'dijetMinDRJetPho', 'dijetCentrality', 'dijetDiphoAbsDPhiTrunc', 'dijetDiphoAbsDEta', 'nSoftJets',
+    'metPt', 'metPhi', 'metSumET', 'metSignificance'
+]
+
+#train_vars = ['diphotonPt', 'dijetMass', 'dijetCentrality', 'leadPhotonPtOvM', 'subleadPhotonPtOvM', 'leadPhotonEta', 'leadPhotonIDMVA', 'subleadPhotonEta', 'subleadPhotonIDMVA', 'leadJetPt', 'leadJetEta', 'subleadJetPt', 'subleadJetEta', 'dijetAbsDEta']
+
+proc_map = {
+    "ggH":1,
+    "VBF":2,
+    "VH":3,
+    "ttH":4,
+    "tH":5,
+    "bkg":0
+}
+
+#proc_map = {
+#    "ggH":1,
+#    "VBF":2,
+#    "bkg":0
+#}
+
 
 # Merge parquet files
 df = pd.read_parquet(opt.input_file, engine="pyarrow")
 
-bdt = BDT(df, train_vars, options=opt)
+bdt = BDT(df, train_vars, options=opt, proc_map=proc_map)
 bdt.create_X_and_y()
 
 # Train classifier

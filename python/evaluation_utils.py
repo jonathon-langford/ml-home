@@ -21,12 +21,15 @@ def hist_feature( fig, ax, data, var, nbins=40, x_range=None, plot_map={}, plot_
 
     weights = np.ones_like(data['proc_id']) if weight is None else data[weight]
 
+    # FIXME: Remove nans and -999s: limited to QGL. Should remove these from training?
+    mask = ( data[var]==data[var] )&( data[var]!=-999 )
+
     if x_range is None:
-        x_range = (data[var].min(),np.percentile(data[var], 98))
+        x_range = (data[mask][var].min(),np.percentile(data[mask][var], 98))
 
     for proc_id in np.unique( data['proc_id'] ):
 
-        mask = data['proc_id']==proc_id
+        mask = (data['proc_id']==proc_id)&(data[var]==data[var])&(data[var]!=-999)
 
         if test_train_split:
 
@@ -137,6 +140,8 @@ def add_proc_id_pred( data, plot_map, weight_array=None, ext="" ):
     return data
 
 
+
+
 # Confusion matrix: normalised by truth or predicted label
 def confusion_matrix( fig, ax, data, plot_map, plot_path="./plots", norm_by="truth", ext=None, mass_cut=False ):
 
@@ -209,6 +214,28 @@ def confusion_matrix( fig, ax, data, plot_map, plot_path="./plots", norm_by="tru
 
     return conf_matrix, conf_matrix_labels
 
+# Correlation matrix: plot correlation matrix
+def plot_corr_matrix( fig, ax, corr_matrix, axis_labels=[], plot_path="./plots/corr_matrix", ext=None ):
+
+    plt.set_cmap("bwr")
+
+    mat = ax.matshow( corr_matrix, vmin=-1, vmax=1 )
+
+    plot_numbers_on_matrix(ax, corr_matrix)
+    ax.set_xticks( np.arange( len( axis_labels) ) )
+    ax.set_yticks( np.arange( len( axis_labels) ) )
+    ax.set_xticklabels( axis_labels, fontsize=16 )
+    ax.set_yticklabels( axis_labels, fontsize=16 )
+    ax.xaxis.tick_bottom()
+
+    cbar = fig.colorbar(mat)
+    cbar.set_label("$\\rho$")
+
+    ext_str = "" if ext == "" else "_%s"%ext
+    fig.savefig("%s/corrmatrix%s.png"%(plot_path,ext_str))
+
+    ax.cla()
+    cbar.remove()
 
 # Take argmax as
 
@@ -217,5 +244,3 @@ def confusion_matrix( fig, ax, data, plot_map, plot_path="./plots", norm_by="tru
 # Add ROC curve for three-class: compare test and train
 
 # Plot probability distributions for test and train
-
-# Play season out with loop for re-training when adding next round of games, exponential decay on importance from previous seasons

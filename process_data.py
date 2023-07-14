@@ -8,7 +8,10 @@ import mplhep
 
 input_path = "/vols/cms/jl2117/ix/hgg/inference_aware/Jun23/samples"
 plot_path = "./plots_perprodmode/input_features_pretrain"
-do_plots = True
+do_plots = False
+#limit_proc_size = 220498
+limit_proc_size = 100000
+#limit_proc_size = -1
 
 # Define procs to process
 procs = ['ggH_M125', 'VBF_M125', 'VH_M125', 'ttH_M125', 'tHq_M125', 'tHW_M125', 'DiPhotonJetsBox_M40_80', 'DiPhotonJetsBox_MGG-80toInf', 'GJet_Pt-20to40_DoubleEMEnriched_MGG-80toInf', 'GJet_Pt-20toInf_DoubleEMEnriched_MGG-40to80', 'GJet_Pt-40toInf_DoubleEMEnriched_MGG-80toInf'] #'QCD_Pt-30to40_DoubleEMEnriched_MGG-80toInf', 'QCD_Pt-30toInf_DoubleEMEnriched_MGG-40to80', 'QCD_Pt-40toInf_DoubleEMEnriched_MGG-80toInf']
@@ -64,6 +67,21 @@ for proc in procs:
 
 df = pd.concat(dfs)
 
+# Randomly select only X rows for each procs
+if limit_proc_size != -1:
+    dfs_skimmed = []
+
+    for proc_id in np.unique( df['proc_id'] ):
+
+        df_proc = df[df['proc_id']==proc_id]
+        df_proc = df_proc.sample(frac=1)
+
+        df_proc_skimmed = df_proc[:limit_proc_size]
+
+        dfs_skimmed.append( df_proc_skimmed )
+
+    df = pd.concat(dfs_skimmed)
+
 # Add normalised weight column for each class
 df['sumw'] = 0
 for proc_id in np.unique( df['proc_id'] ):
@@ -108,6 +126,9 @@ if do_plots:
 
 # Save dataframe as parquet file
 #df.to_parquet( "%s/input_data.parquet"%input_path, engine="pyarrow" )
-df.to_parquet( "%s/input_data_perprodmode.parquet"%input_path, engine="pyarrow" )
+ext_str = ""
+if limit_proc_size != -1: ext_str += "_reduced"
+
+df.to_parquet( "%s/input_data_perprodmode%s.parquet"%(input_path,ext_str), engine="pyarrow" )
 
 

@@ -12,12 +12,13 @@ from timeit import default_timer as timer
 class BDT(object):
 
     # FIXME: add option for dropping negative weights
-    def __init__(self, data, train_vars, train_frac=0.7, eq_weights=True, neg_weights="abs", options=None):
+    def __init__(self, data, train_vars, train_frac=0.7, eq_weights=True, neg_weights="abs", options=None, proc_map={"bkg":0,"ggH":1,"VBF":2}):
 
         self.data = data
         self.train_vars = train_vars
         self.train_frac = train_frac
         self.options = options
+        self.proc_map = proc_map
         self.seed = 1357
         self.weight_var = "weight"
         self.neg_weights = neg_weights
@@ -39,7 +40,7 @@ class BDT(object):
 
         # Create classifier
         self.clf = xgb.XGBClassifier(objective='mlogloss', n_estimators=100, 
-                                     eta=0.05, max_depth=6, min_child_weight=1, 
+                                     eta=0.05, max_depth=6, #min_child_weight=1, 
                                      subsample=0.6, colsample_bytree=0.6, gamma=1)
 
         # Delete data object from memory
@@ -50,10 +51,18 @@ class BDT(object):
     def create_X_and_y(self):
 
         # Add y target label
-        y_ggH = self.data['proc_id']==1
-        y_VBF = self.data['proc_id']==2
-        y_bkg = self.data['proc_id']==0
-        Y = np.select([y_ggH,y_VBF,y_bkg], [0,1,2])
+        y = {}
+        y_list = []
+        for k,v in self.proc_map.items():
+            y[k] = self.data['proc_id']==v
+            y_list.append(y[k])
+        y_vals = np.arange(len(y_list))
+        Y = np.select(y_list, y_vals)
+           
+        #y_ggH = self.data['proc_id']==1
+        #y_VBF = self.data['proc_id']==2
+        #y_bkg = self.data['proc_id']==0
+        #Y = np.select([y_ggH,y_VBF,y_bkg], [0,1,2])
 
         weights = abs( self.data[self.weight_var] ) if self.neg_weights=="abs" else self.data[self.weight_var]
 
@@ -65,12 +74,12 @@ class BDT(object):
         # Equalise weights in train and test samples
         if self.eq_weights:
             sumw = np.zeros_like(y_train, dtype='float64')
-            for i in [0,1,2]:
+            for i in y_vals:
                 sumw += (y_train==i)*(train_w.values[y_train==i].sum())
             train_w_final = train_w.values/sumw
 
             sumw = np.zeros_like(y_test, dtype='float64')
-            for i in [0,1,2]:
+            for i in y_vals:
                 sumw += (y_test==i)*(test_w.values[y_test==i].sum())
             test_w_final = test_w.values/sumw
         else:
@@ -104,13 +113,11 @@ class BDT(object):
     # Evaluate classifier
     def evaluate_classifier(self):
         self.y_pred_train = self.clf.predict_proba( self.X_train )
-        self.data_train['y_pred_ggH'] = self.y_pred_train.T[0]
-        self.data_train['y_pred_VBF'] = self.y_pred_train.T[1]
-        self.data_train['y_pred_bkg'] = self.y_pred_train.T[2]
+        for i,k in enumerate(self.proc_map.keys()):
+            self.data_train['y_pred_%s'%k] = self.y_pred_train.T[i] 
         self.y_pred_test = self.clf.predict_proba( self.X_test )
-        self.data_test['y_pred_ggH'] = self.y_pred_test.T[0]
-        self.data_test['y_pred_VBF'] = self.y_pred_test.T[1]
-        self.data_test['y_pred_bkg'] = self.y_pred_test.T[2]
+        for i,k in enumerate(self.proc_map.keys()):
+            self.data_test['y_pred_%s'%k] = self.y_pred_test.T[i] 
 
 
     # Output dataframe

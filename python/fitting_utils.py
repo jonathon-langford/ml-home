@@ -14,10 +14,59 @@ from matplotlib.lines import Line2D
 def sigmoid(x, scale=100):
     return 1/(1+np.exp(-scale*x))
 
+
 def phi(x, mean=1, sigma=0.01):
     return norm.pdf(x, loc=mean, scale=sigma)/norm.pdf(mean, loc=mean, scale=sigma)
 
-def calc_nll( data, proc_id_pred_var="proc_id_pred", signal_ids=[1,2], background_ids=[0], fit_var="diphotonMass", x_range=(123,127), n_bins=1, lumi_scale=137000, mu_points=100, mu_range=(-0.5,2.5)):
+
+def prepare_nll_inputs( data, proc_id_pred_var="proc_id_pred", signal_ids=[1,2], background_ids=[0], fit_var="diphotonMass", x_range=(123,127), n_bins=1, lumi_scale=137000 ):
+
+    sig_hists, bkg_hists, data_hists = {}, {}, {}
+
+    # Loop over "signal" categories i.e. pred argmax in signal_ids
+    for cat in signal_ids:
+        sig_hists[cat] = {}
+        # Loop over signal processes i.e. true proc id in signal_ids and add hist 
+        for proc in signal_ids:
+            mask = ( data[proc_id_pred_var] == cat )&( data['proc_id'] == proc )
+            sig_hists[cat][proc] = np.histogram( data[mask][fit_var], bins=n_bins, range=x_range, weights=data[mask]['weight']*lumi_scale )[0]
+
+        # Make bkg hists
+        mask = data['proc_id'] == background_ids[0]
+        if len(background_ids) > 1:
+            for proc in background_ids[1:]: mask = mask | ( data['proc_id'] == proc )
+        mask = mask & ( data[proc_id_pred_var] == cat )
+        bkg_hists[cat] = np.histogram( data[mask][fit_var], bins=n_bins, range=x_range, weights=data[mask]['weight']*lumi_scale )[0]
+
+        # Make data hist
+        data_hists[cat] = bkg_hists[cat]
+        for proc in signal_ids: data_hists[cat] = data_hists[cat] + sig_hists[cat][proc]
+
+    return sig_hists, bkg_hists, data_hists
+
+
+def calc_nll( mu, sig_hists, bkg_hists, data_hists, signal_ids=[1,2] ):
+    nll = 0
+    for cat in signal_ids:
+        sig_hist_total = 0
+        for i, proc in enumerate(signal_ids): sig_hist_total += sig_hists[cat][proc]*mu[i]
+        nll = nll - data_hists[cat]*np.log( sig_hist_total + bkg_hists[cat] ) + (sig_hist_total + bkg_hists[cat])
+    return nll
+
+
+def calc_nll_prof( mu_prof, mu_fixed, sig_hists, bkg_hists, data_hists, signal_ids_prof=[2], signal_ids_fixed=[1] ):
+    nll = 0
+    for cat in (signal_ids_fixed+signal_ids_prof):
+        sig_hist_total = 0
+        for i, proc in enumerate(signal_ids_prof): 
+            sig_hist_total += sig_hists[cat][proc]*mu_prof[i]
+        for i, proc in enumerate(signal_ids_fixed): 
+            sig_hist_total += sig_hists[cat][proc]*mu_fixed[i]
+        nll = nll - data_hists[cat]*np.log( sig_hist_total + bkg_hists[cat] ) + (sig_hist_total + bkg_hists[cat])
+    return nll[0]
+
+
+def calc_nll_grid( data, proc_id_pred_var="proc_id_pred", signal_ids=[1,2], background_ids=[0], fit_var="diphotonMass", x_range=(123,127), n_bins=1, lumi_scale=137000, mu_points=100, mu_range=(-0.5,2.5)):
     
     sig_hists, bkg_hists, data_hists = {}, {}, {}
 
@@ -147,7 +196,7 @@ def prepare_fit_inputs( data, signal_ids=[1,2], background_ids=[0], fit_var="dip
     return score, truth_label, event_weights, label_map
 
 
-def calc_fisher_metric_differentiable( W, score, truth_label, event_weights, metric="detF", signal_ids=[1,2], background_ids=[0] ):
+def calc_fisher_differentiable( W, score, truth_label, event_weights, metric="matrix", signal_ids=[1,2], background_ids=[0] ):
 
     # TODO: make compatible with histogram, so far considers only one bin
 
