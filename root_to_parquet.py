@@ -80,7 +80,7 @@ branches = [
      'centralObjectWeight', 'weight'
 ]
 
-branches_mc = branches
+branches_mc = branches.copy()
 branches_mc.extend( ['HTXS_Higgs_pt', 'HTXS_Higgs_y', 'HTXS_stage1_2_cat_pTjet30GeV', 'HTXS_njets30', 'genWeight'] )
 
 # Get list of files to process
@@ -104,8 +104,8 @@ for f in files:
         # Apply normalisation get expected number of events after selection
         sum_gen_w = np.sum(events['genWeight'].values)
         # Scale by XS, efficiency
-        events['weight'] *= xs_map['ggH_M125']
-        events['weight'] *= ea_map['2017']['ggH_M125']
+        events['weight'] *= xs_map[process_name]
+        events['weight'] *= ea_map['2017'][process_name]
         events['weight'] /= sum_gen_w
         
         # Also weight scaled by luminosity
